@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="de"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Anwesenheit Sport</title>
+<style>
+body{font-family:Arial;margin:0;background:#f4f6f5;color:#222}header{background:#2e7d32;color:#fff;padding:18px}main{max-width:1100px;margin:20px auto;padding:10px}.card{background:#fff;padding:20px;border-radius:14px;margin:15px 0;box-shadow:0 3px 12px #0001}button{padding:11px 15px;border:0;border-radius:9px;margin:4px;cursor:pointer}input,select{padding:10px;border:1px solid #bbb;border-radius:8px;width:100%;box-sizing:border-box}.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:15px}.form{display:grid;grid-template-columns:2fr 1fr 1fr;gap:12px}.green{background:#4caf50;color:white}.gray{background:#ddd}.red{background:#e53935;color:white}.orange{background:#fb8c00;color:white}.blue{background:#1565c0;color:white}.danger{background:#c62828;color:white}.hidden{display:none}table{width:100%;border-collapse:collapse}th,td{padding:9px;border-bottom:1px solid #ddd;text-align:left}.sel{outline:3px solid #111}.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}.stat{padding:15px;background:#eef2f3;border-radius:10px}.stat b{display:block;font-size:25px}@media(max-width:750px){.grid,.form,.stats{grid-template-columns:1fr}.status{min-width:0}}
+</style></head><body>
+<header><h1>🏃 Anwesenheit Sport</h1><span id="conn">Verbinde …</span></header><main>
+<div id="msg"></div>
+<section id="home"><div class="card"><h2>SportCheck</h2><div class="grid">
+<button class="green" onclick="newUnit()">➕ Neue Sporteinheit</button><button class="blue" onclick="evaluation()">📊 Auswertung</button><button onclick="settings()">⚙️ Einstellungen</button>
+</div></div></section>
+
+<section id="unit" class="hidden"><div class="card"><button onclick="home()">← Zurück</button><h2>Neue Sporteinheit</h2>
+<div class="form"><label>Klasse<select id="uc"></select></label><label>Datum<input id="date" type="date"></label><label>Turnstunden<input id="lessons" type="number" min="1" value="2"></label></div></div>
+<div class="card"><h3>Schülerinnen und Schüler</h3><div id="students"></div><button class="green" onclick="saveUnit()">💾 Speichern</button></div></section>
+
+<section id="eval" class="hidden"><div class="card"><button onclick="home()">← Zurück</button><h2>Auswertung</h2><label>Klasse<select id="ec" onchange="renderEval()"></select></label><button class="blue" onclick="pdf()">📄 A3-PDF</button></div><div id="evalout"></div></section>
+
+<section id="settings" class="hidden"><div class="card"><button onclick="home()">← Zurück</button><h2>Einstellungen</h2><input id="cn" placeholder="Neue Klasse, z. B. 4a"><button class="green" onclick="addClass()">Klasse anlegen</button><div id="classes"></div></div></section>
+</main>
+<script type="module">
+import{initializeApp}from"https://www.gstatic.com/firebasejs/12.2.1/firebase-app.js";
+import{getFirestore,collection,getDocs,addDoc,setDoc,doc,deleteDoc,query,orderBy}from"https://www.gstatic.com/firebasejs/12.2.1/firebase-firestore.js";
+const firebaseConfig={apiKey:"AIzaSyDVMFsO5XZ6TB_2pKcjRTYo26WJmSJ5Lcc",authDomain:"anwesenheit-sport.firebaseapp.com",projectId:"anwesenheit-sport",storageBucket:"anwesenheit-sport.firebasestorage.app",messagingSenderId:"835346508074",appId:"1:835346508074:web:f8613ee7a5dc9ee8721653",measurementId:"G-6VJS440Q8M"};
+const db=getFirestore(initializeApp(firebaseConfig));let C=[],U=[],A={};const $=x=>document.getElementById(x);
+const esc=x=>String(x??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+function msg(x,err=false){$("msg").innerHTML='<div class="card" style="background:'+(err?"#ffebee":"#e8f5e9")+'">'+x+"</div>";setTimeout(()=>$("msg").innerHTML="",3500)}
+function view(x){["home","unit","eval","settings"].forEach(i=>$(i).classList.toggle("hidden",i!=x))}
+function fill(){let o=C.map(c=>`<option value="${c.id}">${esc(c.name)}</option>`).join("");$("uc").innerHTML=o||"<option>Keine Klasse</option>";$("ec").innerHTML=o||"<option>Keine Klasse</option>";renderSettings()}
+async function load(){try{let a=await getDocs(query(collection(db,"classes"),orderBy("name")));C=a.docs.map(x=>({id:x.id,...x.data()}));let b=await getDocs(query(collection(db,"units"),orderBy("date","desc")));U=b.docs.map(x=>({id:x.id,...x.data()}));$("conn").textContent="● Firebase verbunden";fill()}catch(e){console.error(e);$("conn").textContent="Verbindung fehlgeschlagen";msg("Firebase/Firestore konnte nicht geladen werden. Prüfe die Firestore-Regeln.",true)}}
+function home(){view("home")}window.home=home;
+function newUnit(){if(!C.length){msg("Bitte zuerst eine Klasse anlegen.",true);settings();return}A={};$("date").value=new Date().toISOString().slice(0,10);$("lessons").value=2;fill();renderStudents();view("unit")}window.newUnit=newUnit;
+$("uc").onchange=()=>{A={};renderStudents()};
+function renderStudents(){let c=C.find(x=>x.id==$("uc").value);$("students").innerHTML=!c?"" : (c.students||[]).length?`<table><tr><th>Name</th><th>Status</th></tr>${c.students.map(s=>{let v=A[s.id]||"p";return`<tr><td>${esc(s.name)}</td><td>
+<button class="green ${v=="p"?"sel":""}" onclick="status('${s.id}','p')">Anwesend</button>
+<button class="gray ${v=="a"?"sel":""}" onclick="status('${s.id}','a')">Abwesend</button>
+<button class="red ${v=="k"?"sel":""}" onclick="status('${s.id}','k')">Krank</button>
+<button class="orange ${v=="g"?"sel":""}" onclick="status('${s.id}','g')">Sportzeug vergessen</button></td></tr>`}).join("")}</table>`:"<p>Noch keine Schüler/innen in dieser Klasse.</p>"}
+window.status=(id,v)=>{A[id]=v;renderStudents()};
+async function saveUnit(){let c=C.find(x=>x.id==$("uc").value);if(!c)return;let s={};(c.students||[]).forEach(x=>s[x.id]=A[x.id]||"p");try{await addDoc(collection(db,"units"),{classId:c.id,className:c.name,date:$("date").value,lessons:+$("lessons").value,statuses:s});await load();msg("Sporteinheit gespeichert.");home()}catch(e){msg("Speichern fehlgeschlagen.",true)}}
+window.saveUnit=saveUnit;
+function settings(){fill();view("settings")}window.settings=settings;
+function renderSettings(){$("classes").innerHTML=C.map(c=>`<div class="card"><h3>${esc(c.name)}</h3><input id="s${c.id}" placeholder="Vorname Nachname"><button class="green" onclick="addStudent('${c.id}')">Schüler/in hinzufügen</button><button class="danger" onclick="delClass('${c.id}')">Klasse löschen</button><p>${(c.students||[]).map(s=>`<span>${esc(s.name)} <button class="danger" onclick="delStudent('${c.id}','${s.id}')">×</button></span>`).join(" &nbsp; ")||"Keine Schüler/innen."}</p></div>`).join("")}
+async function addClass(){let n=$("cn").value.trim();if(!n)return;try{await addDoc(collection(db,"classes"),{name:n,students:[]});$("cn").value="";await load();msg("Klasse angelegt.")}catch(e){msg("Fehler.",true)}}window.addClass=addClass;
+async function addStudent(cid){let i=$("s"+cid),n=i.value.trim(),c=C.find(x=>x.id==cid);if(!n)return;let st=[...(c.students||[]),{id:crypto.randomUUID(),name:n}];await setDoc(doc(db,"classes",cid),{students:st},{merge:true});await load();msg("Schüler/in hinzugefügt.")}
+window.addStudent=addStudent;
+async function delStudent(cid,sid){let c=C.find(x=>x.id==cid);if(!confirm("Schüler/in entfernen?"))return;await setDoc(doc(db,"classes",cid),{students:(c.students||[]).filter(s=>s.id!=sid)},{merge:true});await load()}
+window.delStudent=delStudent;
+async function delClass(cid){if(!confirm("Klasse und ihre gespeicherten Sporteinheiten löschen?"))return;for(let u of U.filter(x=>x.classId==cid))await deleteDoc(doc(db,"units",u.id));await deleteDoc(doc(db,"classes",cid));await load();msg("Klasse gelöscht.")}
+window.delClass=delClass;
+function evaluation(){if(!C.length){settings();msg("Bitte zuerst eine Klasse anlegen.",true);return}fill();renderEval();view("eval")}window.evaluation=evaluation;
+function renderEval(){let c=C.find(x=>x.id==$("ec").value);if(!c)return;let us=U.filter(u=>u.classId==c.id),rows=(c.students||[]).map(s=>{let z={p:0,a:0,k:0,g:0};us.forEach(u=>z[u.statuses?.[s.id]||"a"]++);return`<tr><td>${esc(s.name)}</td><td>${z.p}</td><td>${z.a}</td><td>${z.k}</td><td>${z.g}</td></tr>`});let all={p:0,a:0,k:0,g:0};us.forEach(u=>(c.students||[]).forEach(s=>all[u.statuses?.[s.id]||"a"]++));$("evalout").innerHTML=`<div class="card"><h2>${esc(c.name)}</h2><div class="stats"><div class="stat">Sporteinheiten<b>${us.length}</b></div><div class="stat">Anwesend<b>${all.p}</b></div><div class="stat">Abwesend<b>${all.a}</b></div><div class="stat">Krank<b>${all.k}</b></div></div><p><b>Sportzeug vergessen:</b> ${all.g}</p></div><div class="card"><table><tr><th>Schüler/in</th><th>Anwesend</th><th>Abwesend</th><th>Krank</th><th>Sportzeug vergessen</th></tr>${rows.join("")}</table><h3>Gespeicherte Einheiten</h3>${us.map(u=>`<p>${u.date} – ${u.lessons} Turnstunde(n) <button class="danger" onclick="delUnit('${u.id}')">Löschen</button></p>`).join("")||"<p>Keine Einheiten.</p>"}</div>`}
+window.renderEval=renderEval;
+async function delUnit(id){if(confirm("Sporteinheit löschen?")){await deleteDoc(doc(db,"units",id));await load();renderEval()}}window.delUnit=delUnit;
+window.pdf=async()=>{if(!window.jspdf?.jsPDF?.API?.autoTable){msg("PDF-Modul wird noch geladen. Bitte kurz warten und erneut klicken.",true);return}let c=C.find(x=>x.id==$("ec").value),us=U.filter(u=>u.classId==c.id),{jsPDF}=window.jspdf,p=new jsPDF({orientation:"landscape",unit:"mm",format:"a3"});p.setFontSize(22);p.text("Anwesenheit Sport – "+c.name,20,18);let b=(c.students||[]).map(s=>{let z={p:0,a:0,k:0,g:0};us.forEach(u=>z[u.statuses?.[s.id]||"a"]++);return[s.name,z.p,z.a,z.k,z.g]});p.autoTable({startY:30,head:[["Schüler/in","Anwesend","Abwesend","Krank","Sportzeug vergessen"]],body:b,theme:"grid",styles:{fontSize:12},headStyles:{fillColor:[46,125,50]}});p.save("Anwesenheit_Sport_"+c.name+".pdf")};
+let j=document.createElement("script");j.src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js";document.head.appendChild(j);let a=document.createElement("script");a.src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.4/jspdf.plugin.autotable.min.js";document.head.appendChild(a);
+load();
+</script></body></html>
