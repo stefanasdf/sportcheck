@@ -32,11 +32,11 @@ function home(){view("home")}window.home=home;
 function newUnit(){if(!C.length){msg("Bitte zuerst eine Klasse anlegen.",true);settings();return}A={};$("date").value=new Date().toISOString().slice(0,10);$("lessons").value=2;fill();renderStudents();view("unit")}window.newUnit=newUnit;
 $("uc").onchange=()=>{A={};renderStudents()};
 function renderStudents(){let c=C.find(x=>x.id==$("uc").value);$("students").innerHTML=!c?"" : (c.students||[]).length?`<table><tr><th>Name</th><th>Status</th></tr>${c.students.map(s=>{let v=A[s.id]||"p";return`<tr><td>${esc(s.name)}</td><td>
-<button class="green ${v=="p"?"sel":""}" onclick="status('${s.id}','p')">Anwesend</button>
-<button class="gray ${v=="a"?"sel":""}" onclick="status('${s.id}','a')">Abwesend</button>
-<button class="red ${v=="k"?"sel":""}" onclick="status('${s.id}','k')">Krank</button>
-<button class="orange ${v=="g"?"sel":""}" onclick="status('${s.id}','g')">Sportzeug vergessen</button></td></tr>`}).join("")}</table>`:"<p>Noch keine Schüler/innen in dieser Klasse.</p>"}
-window.status=(id,v)=>{A[id]=v;renderStudents()};
+<button class="green ${v=="p"?"sel":""}" onclick="setStudentStatus('${s.id}','p')">Anwesend</button>
+<button class="gray ${v=="a"?"sel":""}" onclick="setStudentStatus('${s.id}','a')">Abwesend</button>
+<button class="red ${v=="k"?"sel":""}" onclick="setStudentStatus('${s.id}','k')">Krank</button>
+<button class="orange ${v=="g"?"sel":""}" onclick="setStudentStatus('${s.id}','g')">Sportzeug vergessen</button></td></tr>`}).join("")}</table>`:"<p>Noch keine Schüler/innen in dieser Klasse.</p>"}
+window.setStudentStatus=(id,v)=>{A[id]=v;renderStudents()};
 async function saveUnit(){let c=C.find(x=>x.id==$("uc").value);if(!c)return;let s={};(c.students||[]).forEach(x=>s[x.id]=A[x.id]||"p");try{await addDoc(collection(db,"units"),{classId:c.id,className:c.name,date:$("date").value,lessons:+$("lessons").value,statuses:s});await load();msg("Sporteinheit gespeichert.");home()}catch(e){msg("Speichern fehlgeschlagen.",true)}}
 window.saveUnit=saveUnit;
 function settings(){fill();view("settings")}window.settings=settings;
