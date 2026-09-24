@@ -169,33 +169,23 @@ async function createAttendancePDF(c){
     p.setFontSize(20);
     p.text("Anwesenheit Sport – "+c.name,15,15);
     p.setFontSize(9);
-    p.text("Alle bisher gespeicherten Sporteinheiten | Seite "+(pageIndex+1)+" / "+chunks.length,15,21);
+    p.text("Alle bisher gespeicherten Sporteinheiten | Summen rechts über alle Einheiten | Seite "+(pageIndex+1)+" / "+chunks.length,15,21);
 
-    const head=["Schüler/in",...chunk.map(u=>formatDateShort(u.date)+"\n"+(u.lessons||1)+" Std."),"A","K","Z"];
+    // Die letzten vier Spalten enthalten die Summe aller ausgewählten
+    // Kategorien über ALLE bisher gespeicherten Sporteinheiten dieser Klasse.
+    // Jede Sporteinheit zählt dabei genau einmal – unabhängig davon, wie viele
+    // Turnstunden bei dieser Einheit eingetragen wurden.
+    const head=["Schüler/in",...chunk.map(u=>formatDateShort(u.date)+"\n"+(u.lessons||1)+" Std."),"✓","A","K","Z"];
     const body=students.map(s=>{
-      const counts={p:0,a:0,k:0,g:0};
-      const values=chunk.map(u=>{
-        const v=u.statuses?.[s.id]||"a";
-        counts[v]++;
-        return statusSymbol(v);
-      });
-      // Summary counts cover ALL historical units, not just the current page.
-      us.forEach(u=>{
-        const v=u.statuses?.[s.id]||"a";
-        if(v in counts) counts[v]++;
-      });
-      // Remove the duplicate count contribution from the current chunk.
-      chunk.forEach(u=>{
-        const v=u.statuses?.[s.id]||"a";
-        if(v in counts) counts[v]--;
-      });
-      // Recalculate summary cleanly over all units.
       const total={p:0,a:0,k:0,g:0};
+
       us.forEach(u=>{
-        const v=u.statuses?.[s.id]||"a";
-        if(v in total) total[v]++;
+        const v=u.statuses?.[s.id] || "a";
+        if(Object.prototype.hasOwnProperty.call(total,v)) total[v]++;
       });
-      return [s.name,...values,total.p,total.k,total.g];
+
+      const values=chunk.map(u=>statusSymbol(u.statuses?.[s.id] || "a"));
+      return [s.name,...values,total.p,total.a,total.k,total.g];
     });
 
     p.autoTable({
