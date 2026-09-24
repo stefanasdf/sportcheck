@@ -5,7 +5,7 @@
 body{font-family:Arial;margin:0;background:#f4f6f5;color:#222}header{background:#2e7d32;color:#fff;padding:18px}main{max-width:1100px;margin:20px auto;padding:10px}.card{background:#fff;padding:20px;border-radius:14px;margin:15px 0;box-shadow:0 3px 12px #0001}button{padding:11px 15px;border:0;border-radius:9px;margin:4px;cursor:pointer}input,select{padding:10px;border:1px solid #bbb;border-radius:8px;width:100%;box-sizing:border-box}.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:15px}.form{display:grid;grid-template-columns:2fr 1fr 1fr;gap:12px}.green{background:#4caf50;color:white}.gray{background:#ddd}.red{background:#e53935;color:white}.orange{background:#fb8c00;color:white}.blue{background:#1565c0;color:white}.danger{background:#c62828;color:white}.hidden{display:none}table{width:100%;border-collapse:collapse}th,td{padding:9px;border-bottom:1px solid #ddd;text-align:left}.sel{outline:3px solid #111}.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}.stat{padding:15px;background:#eef2f3;border-radius:10px}.stat b{display:block;font-size:25px}@media(max-width:750px){
 .grid,.form,.stats{grid-template-columns:1fr}
 .status-row{display:flex;flex-wrap:nowrap;gap:3px}
-.status-row .status{flex:1 1 0;min-width:0;margin:2px 0;padding:8px 3px;font-size:11px;line-height:1.05}
+.status-row .status{flex:1 1 0;min-width:0;margin:2px 0;padding:8px 3px;font-size:10px;line-height:1.05}
 .status-row .status .long{display:none}
 .status-row .status .short{display:inline}
 } 
@@ -43,19 +43,20 @@ async function load(){try{let a=await getDocs(query(collection(db,"classes"),ord
 function home(){view("home")}window.home=home;
 function newUnit(){if(!C.length){msg("Bitte zuerst eine Klasse anlegen.",true);settings();return}A={};$("date").value=new Date().toISOString().slice(0,10);$("lessons").value=2;fill();renderStudents();view("unit")}window.newUnit=newUnit;
 $("uc").onchange=()=>{A={};renderStudents()};
-function renderStudents(){let c=C.find(x=>x.id==$("uc").value);$("students").innerHTML=!c?"" : (c.students||[]).length?`<table><tr><th>Name</th><th>Status</th></tr>${c.students.map(s=>{let v=A[s.id]||"p";return`<tr><td>${esc(s.name)}</td><td>
+function renderStudents(){let c=C.find(x=>x.id==$("uc").value);$("students").innerHTML=!c?"" : (c.students||[]).length?`<table><tr><th>Name</th><th>Status</th></tr>${c.students.map(s=>{let v=A[s.id]||"o";return`<tr><td>${esc(s.name)}</td><td>
 <div class="status-row">
-<button class="status green ${v=="p"?"sel":""}" onclick="setStudentStatus('${s.id}','p')"><span class="short">✓</span><span class="long">Anwesend</span></button>
-<button class="status gray ${v=="a"?"sel":""}" onclick="setStudentStatus('${s.id}','a')"><span class="short">A</span><span class="long">Abwesend</span></button>
-<button class="status red ${v=="k"?"sel":""}" onclick="setStudentStatus('${s.id}','k')"><span class="short">K</span><span class="long">Krank</span></button>
-<button class="status orange ${v=="g"?"sel":""}" onclick="setStudentStatus('${s.id}','g')"><span class="short">Z</span><span class="long">Sportzeug vergessen</span></button>
+<button class="status green ${v=="o"?"sel":""}" onclick="setStudentStatus('${s.id}','o')"><span class="short">O</span><span class="long">OK</span></button>
+<button class="status orange ${v=="s"?"sel":""}" onclick="setStudentStatus('${s.id}','s')"><span class="short">S</span><span class="long">Sachen vergessen</span></button>
+<button class="status red ${v=="n"?"sel":""}" onclick="setStudentStatus('${s.id}','n')"><span class="short">N</span><span class="long">Nicht entschuldigt</span></button>
+<button class="status blue ${v=="e"?"sel":""}" onclick="setStudentStatus('${s.id}','e')"><span class="short">E</span><span class="long">Entschuldigt</span></button>
+<button class="status gray ${v=="f"?"sel":""}" onclick="setStudentStatus('${s.id}','f')"><span class="short">F</span><span class="long">Fehlt</span></button>
 </div></td></tr>`}).join("")}</table>`:"<p>Noch keine Schüler/innen in dieser Klasse.</p>"}
 window.setStudentStatus=(id,v)=>{A[id]=v;renderStudents()};
 async function saveUnit(){
   let c=C.find(x=>x.id===$("uc").value);
   if(!c)return;
   let s={};
-  (c.students||[]).forEach(x=>s[x.id]=A[x.id]||"p");
+  (c.students||[]).forEach(x=>s[x.id]=A[x.id]||"o");
 
   try{
     await addDoc(collection(db,"units"),{
@@ -125,11 +126,11 @@ function renderEval(){
   let us=U.filter(u=>u.classId===c.id);
   let rows=(c.students||[]).map(s=>{
     const z=countStudentStatuses(us,s.id);
-    return `<tr><td>${esc(s.name)}</td><td>${z.p}</td><td>${z.a}</td><td>${z.g}</td><td>${z.k}</td></tr>`;
+    return `<tr><td>${esc(s.name)}</td><td>${z.o}</td><td>${z.s}</td><td>${z.n}</td><td>${z.e}</td><td>${z.f}</td></tr>`;
   });
-  let all={p:0,a:0,g:0,k:0};
-  (c.students||[]).forEach(s=>{const z=countStudentStatuses(us,s.id);all.p+=z.p;all.a+=z.a;all.g+=z.g;all.k+=z.k});
-  $("evalout").innerHTML=`<div class="card"><h2>${esc(c.name)}</h2><div class="stats"><div class="stat">Sporteinheiten<b>${us.length}</b></div><div class="stat">Alles OK<b>${all.p}</b></div><div class="stat">Abwesend<b>${all.a}</b></div><div class="stat">Krank<b>${all.k}</b></div></div><p><b>Sportzeug vergessen:</b> ${all.g}</p></div><div class="card"><table><tr><th>Schüler/in</th><th>Alles OK</th><th>Gefehlt</th><th>Sachen vergessen</th><th>Krank</th></tr>${rows.join("")}</table><h3>Gespeicherte Einheiten</h3>${us.map(u=>`<p>${u.date} – ${u.lessons} Turnstunde(n) <button class="danger" onclick="delUnit('${u.id}')">Löschen</button></p>`).join("")||"<p>Keine Einheiten.</p>"}</div>`
+  let all={o:0,s:0,n:0,e:0,f:0};
+  (c.students||[]).forEach(s=>{const z=countStudentStatuses(us,s.id);all.o+=z.o;all.s+=z.s;all.n+=z.n;all.e+=z.e;all.f+=z.f});
+  $("evalout").innerHTML=`<div class="card"><h2>${esc(c.name)}</h2><div class="stats"><div class="stat">Sporteinheiten<b>${us.length}</b></div><div class="stat">OK<b>${all.o}</b></div><div class="stat">Sachen vergessen<b>${all.s}</b></div><div class="stat">Nicht entschuldigt<b>${all.n}</b></div></div><p><b>Entschuldigt:</b> ${all.e} &nbsp;&nbsp; <b>Fehlt:</b> ${all.f}</p></div><div class="card"><table><tr><th>Schüler/in</th><th>OK</th><th>Sachen vergessen</th><th>Nicht entschuldigt</th><th>Entschuldigt</th><th>Fehlt</th></tr>${rows.join("")}</table><h3>Gespeicherte Einheiten</h3>${us.map(u=>`<p>${u.date} – ${u.lessons} Turnstunde(n) <button class="danger" onclick="delUnit('${u.id}')">Löschen</button></p>`).join("")||"<p>Keine Einheiten.</p>"}</div>`
 }
 window.renderEval=renderEval;
 async function delUnit(id){if(confirm("Sporteinheit löschen?")){await deleteDoc(doc(db,"units",id));await load();renderEval()}}window.delUnit=delUnit;
@@ -154,20 +155,21 @@ pdfLoading=Promise.all([
 });
 
 function normalizeStatus(v){
-  if(v==="p"||v==="present"||v==="ok"||v==="anwesend"||v==="✓") return "p";
-  if(v==="a"||v==="absent"||v==="abwesend"||v==="A") return "a";
-  if(v==="k"||v==="sick"||v==="krank"||v==="K") return "k";
-  if(v==="g"||v==="forgot"||v==="equipment"||v==="sportzeug"||v==="Z") return "g";
+  if(v==="o"||v==="p"||v==="present"||v==="ok"||v==="anwesend"||v==="✓"||v==="O") return "o";
+  if(v==="s"||v==="g"||v==="forgot"||v==="equipment"||v==="sportzeug"||v==="Z"||v==="S") return "s";
+  if(v==="n"||v==="N") return "n";
+  if(v==="e"||v==="k"||v==="sick"||v==="krank"||v==="K"||v==="E") return "e";
+  if(v==="f"||v==="a"||v==="absent"||v==="abwesend"||v==="A"||v==="F") return "f";
   return null;
 }
 
 function statusSymbol(v){
   const n=normalizeStatus(v);
-  return n==="p"?"✓":n==="a"?"A":n==="k"?"K":n==="g"?"Z":"";
+  return n ? n.toUpperCase() : "";
 }
 
 function countStudentStatuses(us,studentId){
-  const total={p:0,a:0,g:0,k:0};
+  const total={o:0,s:0,n:0,e:0,f:0};
   us.forEach(u=>{
     const n=normalizeStatus(u.statuses?.[studentId]);
     if(n) total[n]++;
@@ -198,19 +200,19 @@ async function createAttendancePDF(c){
     p.setFontSize(20);
     p.text("Anwesenheit Sport – "+c.name,15,15);
     p.setFontSize(9);
-    p.text("Alle bisher gespeicherten Sporteinheiten | Summen rechts über alle Einheiten | Seite "+(pageIndex+1)+" / "+chunks.length,15,21);
+    p.text("Alle bisher gespeicherten Sporteinheiten | O/S/N/E/F-Summen rechts über alle Einheiten | Seite "+(pageIndex+1)+" / "+chunks.length,15,21);
 
     // Die letzten vier Spalten enthalten die Summe aller ausgewählten
     // Kategorien über ALLE bisher gespeicherten Sporteinheiten dieser Klasse.
     // Jede Sporteinheit zählt dabei genau einmal – unabhängig davon, wie viele
     // Turnstunden bei dieser Einheit eingetragen wurden.
-    const head=["Schüler/in",...chunk.map(u=>formatDateShort(u.date)+"\n"+(u.lessons||1)+" Std."),"OK","Fehlt","Vergessen","Krank"];
+    const head=["Schüler/in",...chunk.map(u=>formatDateShort(u.date)+"\n"+(u.lessons||1)+" Std."),"O","S","N","E","F"];
     const body=students.map(s=>{
       // Diese vier Werte werden nach JEDER neuen Auswertung neu aus
       // sämtlichen bisher gespeicherten Sporteinheiten dieser Klasse berechnet.
       const total=countStudentStatuses(us,s.id);
       const values=chunk.map(u=>statusSymbol(u.statuses?.[s.id]));
-      return [s.name,...values,total.p,total.a,total.g,total.k];
+      return [s.name,...values,total.o,total.s,total.n,total.e,total.f];
     });
 
     p.autoTable({
