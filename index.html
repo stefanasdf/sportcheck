@@ -2,10 +2,21 @@
 <html lang="de"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Anwesenheit Sport</title>
 <style>
-body{font-family:Arial;margin:0;background:#f4f6f5;color:#222}header{background:#2e7d32;color:#fff;padding:18px}main{max-width:1100px;margin:20px auto;padding:10px}.card{background:#fff;padding:20px;border-radius:14px;margin:15px 0;box-shadow:0 3px 12px #0001}button{padding:11px 15px;border:0;border-radius:9px;margin:4px;cursor:pointer}input,select{padding:10px;border:1px solid #bbb;border-radius:8px;width:100%;box-sizing:border-box}.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:15px}.form{display:grid;grid-template-columns:2fr 1fr 1fr;gap:12px}.green{background:#4caf50;color:white}.gray{background:#ddd}.red{background:#e53935;color:white}.orange{background:#fb8c00;color:white}.blue{background:#1565c0;color:white}.danger{background:#c62828;color:white}.hidden{display:none}table{width:100%;border-collapse:collapse}th,td{padding:9px;border-bottom:1px solid #ddd;text-align:left}.sel{outline:3px solid #111}.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}.stat{padding:15px;background:#eef2f3;border-radius:10px}.stat b{display:block;font-size:25px}@media(max-width:750px){.grid,.form,.stats{grid-template-columns:1fr}.status{min-width:0}}
+body{font-family:Arial;margin:0;background:#f4f6f5;color:#222}header{background:#2e7d32;color:#fff;padding:18px}main{max-width:1100px;margin:20px auto;padding:10px}.card{background:#fff;padding:20px;border-radius:14px;margin:15px 0;box-shadow:0 3px 12px #0001}button{padding:11px 15px;border:0;border-radius:9px;margin:4px;cursor:pointer}input,select{padding:10px;border:1px solid #bbb;border-radius:8px;width:100%;box-sizing:border-box}.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:15px}.form{display:grid;grid-template-columns:2fr 1fr 1fr;gap:12px}.green{background:#4caf50;color:white}.gray{background:#ddd}.red{background:#e53935;color:white}.orange{background:#fb8c00;color:white}.blue{background:#1565c0;color:white}.danger{background:#c62828;color:white}.hidden{display:none}table{width:100%;border-collapse:collapse}th,td{padding:9px;border-bottom:1px solid #ddd;text-align:left}.sel{outline:3px solid #111}.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}.stat{padding:15px;background:#eef2f3;border-radius:10px}.stat b{display:block;font-size:25px}@media(max-width:750px){
+.grid,.form,.stats{grid-template-columns:1fr}
+.status-row{display:flex;flex-wrap:nowrap;gap:3px}
+.status-row .status{flex:1 1 0;min-width:0;margin:2px 0;padding:8px 3px;font-size:11px;line-height:1.05}
+.status-row .status .long{display:none}
+.status-row .status .short{display:inline}
+} 
+@media(min-width:751px){
+.status-row{display:flex;flex-wrap:wrap;gap:4px}
+.status-row .short{display:none}
+}
+
 </style></head><body>
 <header><h1>🏃 Anwesenheit Sport</h1><span id="conn">Verbinde …</span></header><main>
-<div id="msg"></div>
+<div id="msg"></div><div id="pdfActions"></div>
 <section id="home"><div class="card"><h2>SportCheck</h2><div class="grid">
 <button class="green" onclick="newUnit()">➕ Neue Sporteinheit</button><button class="blue" onclick="evaluation()">📊 Auswertung</button><button onclick="settings()">⚙️ Einstellungen</button>
 </div></div></section>
@@ -16,13 +27,14 @@ body{font-family:Arial;margin:0;background:#f4f6f5;color:#222}header{background:
 
 <section id="eval" class="hidden"><div class="card"><button onclick="home()">← Zurück</button><h2>Auswertung</h2><label>Klasse<select id="ec" onchange="renderEval()"></select></label><button class="blue" onclick="pdf()">📄 A3-PDF</button></div><div id="evalout"></div></section>
 
-<section id="settings" class="hidden"><div class="card"><button onclick="home()">← Zurück</button><h2>Einstellungen</h2><input id="cn" placeholder="Neue Klasse, z. B. 4a"><button class="green" onclick="addClass()">Klasse anlegen</button><div id="classes"></div></div></section>
+<section id="settings" class="hidden"><div class="card"><button onclick="home()">← Zurück</button><h2>Einstellungen</h2><p class="muted">Nach dem Speichern wird automatisch ein A3-PDF mit allen bisherigen Sporteinheiten erstellt und heruntergeladen. Auf Smartphones kannst du das PDF über die Teilen-Funktion direkt an Outlook weitergeben.</p><input id="cn" placeholder="Neue Klasse, z. B. 4a"><button class="green" onclick="addClass()">Klasse anlegen</button><div id="classes"></div></div></section>
 </main>
 <script type="module">
 import{initializeApp}from"https://www.gstatic.com/firebasejs/12.2.1/firebase-app.js";
 import{getFirestore,collection,getDocs,addDoc,setDoc,doc,deleteDoc,query,orderBy}from"https://www.gstatic.com/firebasejs/12.2.1/firebase-firestore.js";
 const firebaseConfig={apiKey:"AIzaSyDVMFsO5XZ6TB_2pKcjRTYo26WJmSJ5Lcc",authDomain:"anwesenheit-sport.firebaseapp.com",projectId:"anwesenheit-sport",storageBucket:"anwesenheit-sport.firebasestorage.app",messagingSenderId:"835346508074",appId:"1:835346508074:web:f8613ee7a5dc9ee8721653",measurementId:"G-6VJS440Q8M"};
 const db=getFirestore(initializeApp(firebaseConfig));let C=[],U=[],A={};const $=x=>document.getElementById(x);
+
 const esc=x=>String(x??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 function msg(x,err=false){$("msg").innerHTML='<div class="card" style="background:'+(err?"#ffebee":"#e8f5e9")+'">'+x+"</div>";setTimeout(()=>$("msg").innerHTML="",3500)}
 function view(x){["home","unit","eval","settings"].forEach(i=>$(i).classList.toggle("hidden",i!=x))}
@@ -32,13 +44,71 @@ function home(){view("home")}window.home=home;
 function newUnit(){if(!C.length){msg("Bitte zuerst eine Klasse anlegen.",true);settings();return}A={};$("date").value=new Date().toISOString().slice(0,10);$("lessons").value=2;fill();renderStudents();view("unit")}window.newUnit=newUnit;
 $("uc").onchange=()=>{A={};renderStudents()};
 function renderStudents(){let c=C.find(x=>x.id==$("uc").value);$("students").innerHTML=!c?"" : (c.students||[]).length?`<table><tr><th>Name</th><th>Status</th></tr>${c.students.map(s=>{let v=A[s.id]||"p";return`<tr><td>${esc(s.name)}</td><td>
-<button class="green ${v=="p"?"sel":""}" onclick="setStudentStatus('${s.id}','p')">Anwesend</button>
-<button class="gray ${v=="a"?"sel":""}" onclick="setStudentStatus('${s.id}','a')">Abwesend</button>
-<button class="red ${v=="k"?"sel":""}" onclick="setStudentStatus('${s.id}','k')">Krank</button>
-<button class="orange ${v=="g"?"sel":""}" onclick="setStudentStatus('${s.id}','g')">Sportzeug vergessen</button></td></tr>`}).join("")}</table>`:"<p>Noch keine Schüler/innen in dieser Klasse.</p>"}
+<div class="status-row">
+<button class="status green ${v=="p"?"sel":""}" onclick="setStudentStatus('${s.id}','p')"><span class="short">✓</span><span class="long">Anwesend</span></button>
+<button class="status gray ${v=="a"?"sel":""}" onclick="setStudentStatus('${s.id}','a')"><span class="short">A</span><span class="long">Abwesend</span></button>
+<button class="status red ${v=="k"?"sel":""}" onclick="setStudentStatus('${s.id}','k')"><span class="short">K</span><span class="long">Krank</span></button>
+<button class="status orange ${v=="g"?"sel":""}" onclick="setStudentStatus('${s.id}','g')"><span class="short">Z</span><span class="long">Sportzeug vergessen</span></button>
+</div></td></tr>`}).join("")}</table>`:"<p>Noch keine Schüler/innen in dieser Klasse.</p>"}
 window.setStudentStatus=(id,v)=>{A[id]=v;renderStudents()};
-async function saveUnit(){let c=C.find(x=>x.id==$("uc").value);if(!c)return;let s={};(c.students||[]).forEach(x=>s[x.id]=A[x.id]||"p");try{await addDoc(collection(db,"units"),{classId:c.id,className:c.name,date:$("date").value,lessons:+$("lessons").value,statuses:s});await load();msg("Sporteinheit gespeichert.");home()}catch(e){msg("Speichern fehlgeschlagen.",true)}}
+async function saveUnit(){
+  let c=C.find(x=>x.id===$("uc").value);
+  if(!c)return;
+  let s={};
+  (c.students||[]).forEach(x=>s[x.id]=A[x.id]||"p");
+
+  try{
+    await addDoc(collection(db,"units"),{
+      classId:c.id,className:c.name,date:$("date").value,
+      lessons:+$("lessons").value,statuses:s,createdAt:new Date().toISOString()
+    });
+
+    await load();
+    const freshClass=C.find(x=>x.id==c.id);
+    const pdfResult=await createAttendancePDF(freshClass);
+
+    if(pdfResult){
+      // Das PDF wird automatisch heruntergeladen.
+      pdfResult.pdf.save(pdfResult.filename);
+      showPDFActions(pdfResult, freshClass, $("date").value);
+      msg("Sporteinheit gespeichert. Das vollständige A3-PDF wurde erstellt und heruntergeladen.");
+    }else{
+      msg("Sporteinheit gespeichert. PDF konnte nicht erstellt werden.",true);
+    }
+    home();
+  }catch(e){
+    console.error(e);
+    msg("Sporteinheit wurde eventuell gespeichert, aber das PDF konnte nicht erstellt werden: "+(e.text||e.message||"unbekannter Fehler"),true);
+  }
+}
 window.saveUnit=saveUnit;
+
+let lastPDF=null;
+function showPDFActions(result,c,date){
+  lastPDF={result,c,date};
+  $("pdfActions").innerHTML=`<div class="card"><h3>📄 A3-PDF bereit</h3><p>Das PDF mit allen bisherigen Sporteinheiten wurde bereits heruntergeladen.</p><button class="blue" onclick="downloadLastPDF()">📥 PDF erneut herunterladen</button><button class="green" onclick="shareLastPDF()">📤 PDF teilen / an Outlook senden</button><button onclick="prepareEmail()">✉️ E-Mail vorbereiten</button></div>`;
+}
+window.downloadLastPDF=()=>{if(lastPDF)lastPDF.result.pdf.save(lastPDF.result.filename)};
+window.shareLastPDF=async()=>{
+  if(!lastPDF)return;
+  try{
+    const blob=lastPDF.result.pdf.output("blob");
+    const file=new File([blob],lastPDF.result.filename,{type:"application/pdf"});
+    if(navigator.share && (!navigator.canShare || navigator.canShare({files:[file]}))){
+      await navigator.share({title:"SportCheck "+lastPDF.c.name,text:"A3-Sportauswertung für "+lastPDF.c.name+" – "+formatDateShort(lastPDF.date),files:[file]});
+    }else{
+      msg("Auf diesem Gerät ist direktes Teilen von Dateien nicht verfügbar. Das PDF wurde bereits heruntergeladen. Bitte in Outlook als Anhang hinzufügen.",true);
+    }
+  }catch(e){
+    if(e.name!=="AbortError") msg("Teilen konnte nicht geöffnet werden. Das PDF wurde bereits heruntergeladen.",true);
+  }
+};
+window.prepareEmail=()=>{
+  if(!lastPDF)return;
+  const subject=encodeURIComponent("SportCheck – neue Sporteinheit "+lastPDF.c.name+" – "+lastPDF.date);
+  const body=encodeURIComponent("Hallo,\n\nim Anhang befindet sich die aktuelle A3-Sportauswertung für "+lastPDF.c.name+".\n\nViele Grüße\nSportCheck MS Köflach");
+  window.location.href="mailto:sport@ms-koeflach.at?subject="+subject+"&body="+body;
+};
 function settings(){fill();view("settings")}window.settings=settings;
 function renderSettings(){$("classes").innerHTML=C.map(c=>`<div class="card"><h3>${esc(c.name)}</h3><input id="s${c.id}" placeholder="Vorname Nachname"><button class="green" onclick="addStudent('${c.id}')">Schüler/in hinzufügen</button><button class="danger" onclick="delClass('${c.id}')">Klasse löschen</button><p>${(c.students||[]).map(s=>`<span>${esc(s.name)} <button class="danger" onclick="delStudent('${c.id}','${s.id}')">×</button></span>`).join(" &nbsp; ")||"Keine Schüler/innen."}</p></div>`).join("")}
 async function addClass(){let n=$("cn").value.trim();if(!n)return;try{await addDoc(collection(db,"classes"),{name:n,students:[]});$("cn").value="";await load();msg("Klasse angelegt.")}catch(e){msg("Fehler.",true)}}window.addClass=addClass;
@@ -54,8 +124,117 @@ window.renderEval=renderEval;
 async function delUnit(id){if(confirm("Sporteinheit löschen?")){await deleteDoc(doc(db,"units",id));await load();renderEval()}}window.delUnit=delUnit;
 let pdfReady=false;
 let pdfLoading=null;
-function loadScript(src){return new Promise((resolve,reject)=>{const s=document.createElement("script");s.src=src;s.onload=resolve;s.onerror=()=>reject(new Error("PDF script konnte nicht geladen werden"));document.head.appendChild(s)})}
-pdfLoading=Promise.all([loadScript("https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"),loadScript("https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.4/jspdf.plugin.autotable.min.js")]).then(()=>{pdfReady=!!(window.jspdf&&window.jspdf.jsPDF&&window.jspdf.jsPDF.API.autoTable)}).catch(e=>console.error(e));
-window.pdf=async()=>{try{if(!pdfReady){msg("PDF-Modul wird noch geladen. Bitte einen Moment warten …");await pdfLoading}if(!window.jspdf||!window.jspdf.jsPDF||!window.jspdf.jsPDF.API.autoTable){msg("Das PDF-Modul konnte nicht geladen werden. Bitte Internetverbindung prüfen und die Seite mit Strg+F5 neu laden.",true);return}let c=C.find(x=>x.id==$("ec").value);if(!c){msg("Bitte zuerst eine Klasse auswählen.",true);return}let us=U.filter(u=>u.classId==c.id),{jsPDF}=window.jspdf,p=new jsPDF({orientation:"landscape",unit:"mm",format:"a3"});p.setFontSize(22);p.text("Anwesenheit Sport – "+c.name,20,18);p.setFontSize(11);p.text("Auswertung",20,25);let b=(c.students||[]).map(s=>{let z={p:0,a:0,k:0,g:0};us.forEach(u=>z[u.statuses?.[s.id]||"a"]++);return[s.name,z.p,z.a,z.k,z.g]});p.autoTable({startY:32,head:[["Schüler/in","Anwesend","Abwesend","Krank","Sportzeug vergessen"]],body:b,theme:"grid",styles:{fontSize:12,cellPadding:3},headStyles:{fillColor:[46,125,50],textColor:255}});p.save("Anwesenheit_Sport_"+c.name.replace(/[^a-z0-9äöüÄÖÜ_-]/gi,"_")+".pdf")}catch(e){console.error(e);msg("Beim Erstellen des PDFs ist ein Fehler aufgetreten.",true)}};
+
+function loadExternalScript(src){
+  return new Promise((resolve,reject)=>{
+    const s=document.createElement("script");
+    s.src=src;
+    s.onload=resolve;
+    s.onerror=()=>reject(new Error("Konnte PDF-Bibliothek nicht laden."));
+    document.head.appendChild(s);
+  });
+}
+
+pdfLoading=Promise.all([
+  loadExternalScript("https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"),
+  loadExternalScript("https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.4/jspdf.plugin.autotable.min.js")
+]).then(()=>{
+  pdfReady=!!(window.jspdf && window.jspdf.jsPDF && window.jspdf.jsPDF.API.autoTable);
+});
+
+function statusSymbol(v){
+  return v==="p"?"✓":v==="a"?"A":v==="k"?"K":"Z";
+}
+
+async function createAttendancePDF(c){
+  if(!pdfReady) await pdfLoading;
+  if(!window.jspdf?.jsPDF?.API?.autoTable){
+    msg("PDF-Modul konnte nicht geladen werden.",true);
+    return null;
+  }
+
+  const {jsPDF}=window.jspdf;
+  const us=U.filter(u=>u.classId===c.id).sort((a,b)=>String(a.date).localeCompare(String(b.date)));
+  const students=c.students||[];
+  const p=new jsPDF({orientation:"landscape",unit:"mm",format:"a3"});
+
+  // Bis zu 18 Sporteinheiten pro Seite. Bei mehr Einheiten entstehen weitere
+  // A3-Seiten; die historischen Spalten bleiben dadurch lesbar.
+  const chunks=[];
+  for(let i=0;i<us.length;i+=18) chunks.push(us.slice(i,i+18));
+  if(!chunks.length) chunks.push([]);
+
+  chunks.forEach((chunk,pageIndex)=>{
+    if(pageIndex>0)p.addPage();
+    p.setFontSize(20);
+    p.text("Anwesenheit Sport – "+c.name,15,15);
+    p.setFontSize(9);
+    p.text("Alle bisher gespeicherten Sporteinheiten | Seite "+(pageIndex+1)+" / "+chunks.length,15,21);
+
+    const head=["Schüler/in",...chunk.map(u=>formatDateShort(u.date)+"\n"+(u.lessons||1)+" Std."),"A","K","Z"];
+    const body=students.map(s=>{
+      const counts={p:0,a:0,k:0,g:0};
+      const values=chunk.map(u=>{
+        const v=u.statuses?.[s.id]||"a";
+        counts[v]++;
+        return statusSymbol(v);
+      });
+      // Summary counts cover ALL historical units, not just the current page.
+      us.forEach(u=>{
+        const v=u.statuses?.[s.id]||"a";
+        if(v in counts) counts[v]++;
+      });
+      // Remove the duplicate count contribution from the current chunk.
+      chunk.forEach(u=>{
+        const v=u.statuses?.[s.id]||"a";
+        if(v in counts) counts[v]--;
+      });
+      // Recalculate summary cleanly over all units.
+      const total={p:0,a:0,k:0,g:0};
+      us.forEach(u=>{
+        const v=u.statuses?.[s.id]||"a";
+        if(v in total) total[v]++;
+      });
+      return [s.name,...values,total.p,total.k,total.g];
+    });
+
+    p.autoTable({
+      startY:27,
+      head:[head],
+      body,
+      theme:"grid",
+      styles:{fontSize:8,cellPadding:2,halign:"center",valign:"middle"},
+      headStyles:{fillColor:[46,125,50],textColor:255,fontSize:8},
+      columnStyles:{0:{cellWidth:48,halign:"left"}},
+      margin:{left:15,right:15},
+      didParseCell:data=>{
+        if(data.section==="head" && data.column.index===0) data.cell.styles.halign="left";
+        if(data.section==="body" && data.column.index===0) data.cell.styles.halign="left";
+      }
+    });
+  });
+
+  const filename="Anwesenheit_Sport_"+c.name.replace(/[^a-z0-9äöüÄÖÜ_-]/gi,"_")+".pdf";
+  const dataUri=p.output("datauristring");
+  return {pdf:p,dataUri,filename};
+}
+
+function formatDateShort(d){
+  if(!d)return "";
+  const [y,m,day]=d.split("-");
+  return `${day}.${m}.${y}`;
+}
+
+window.pdf=async()=>{
+  const c=C.find(x=>x.id===$("ec").value);
+  if(!c){msg("Bitte zuerst eine Klasse auswählen.",true);return;}
+  try{
+    const result=await createAttendancePDF(c);
+    if(result)result.pdf.save(result.filename);
+  }catch(e){
+    console.error(e);
+    msg("Beim Erstellen des PDFs ist ein Fehler aufgetreten.",true);
+  }
+};
 load();
 </script></body></html>
