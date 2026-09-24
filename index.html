@@ -119,7 +119,18 @@ window.delStudent=delStudent;
 async function delClass(cid){if(!confirm("Klasse und ihre gespeicherten Sporteinheiten löschen?"))return;for(let u of U.filter(x=>x.classId==cid))await deleteDoc(doc(db,"units",u.id));await deleteDoc(doc(db,"classes",cid));await load();msg("Klasse gelöscht.")}
 window.delClass=delClass;
 function evaluation(){if(!C.length){settings();msg("Bitte zuerst eine Klasse anlegen.",true);return}fill();renderEval();view("eval")}window.evaluation=evaluation;
-function renderEval(){let c=C.find(x=>x.id==$("ec").value);if(!c)return;let us=U.filter(u=>u.classId==c.id),rows=(c.students||[]).map(s=>{let z={p:0,a:0,k:0,g:0};us.forEach(u=>z[u.statuses?.[s.id]||"a"]++);return`<tr><td>${esc(s.name)}</td><td>${z.p}</td><td>${z.a}</td><td>${z.k}</td><td>${z.g}</td></tr>`});let all={p:0,a:0,k:0,g:0};us.forEach(u=>(c.students||[]).forEach(s=>all[u.statuses?.[s.id]||"a"]++));$("evalout").innerHTML=`<div class="card"><h2>${esc(c.name)}</h2><div class="stats"><div class="stat">Sporteinheiten<b>${us.length}</b></div><div class="stat">Anwesend<b>${all.p}</b></div><div class="stat">Abwesend<b>${all.a}</b></div><div class="stat">Krank<b>${all.k}</b></div></div><p><b>Sportzeug vergessen:</b> ${all.g}</p></div><div class="card"><table><tr><th>Schüler/in</th><th>Anwesend</th><th>Abwesend</th><th>Krank</th><th>Sportzeug vergessen</th></tr>${rows.join("")}</table><h3>Gespeicherte Einheiten</h3>${us.map(u=>`<p>${u.date} – ${u.lessons} Turnstunde(n) <button class="danger" onclick="delUnit('${u.id}')">Löschen</button></p>`).join("")||"<p>Keine Einheiten.</p>"}</div>`}
+function renderEval(){
+  let c=C.find(x=>x.id===$("ec").value);
+  if(!c)return;
+  let us=U.filter(u=>u.classId===c.id);
+  let rows=(c.students||[]).map(s=>{
+    const z=countStudentStatuses(us,s.id);
+    return `<tr><td>${esc(s.name)}</td><td>${z.p}</td><td>${z.a}</td><td>${z.g}</td><td>${z.k}</td></tr>`;
+  });
+  let all={p:0,a:0,g:0,k:0};
+  (c.students||[]).forEach(s=>{const z=countStudentStatuses(us,s.id);all.p+=z.p;all.a+=z.a;all.g+=z.g;all.k+=z.k});
+  $("evalout").innerHTML=`<div class="card"><h2>${esc(c.name)}</h2><div class="stats"><div class="stat">Sporteinheiten<b>${us.length}</b></div><div class="stat">Alles OK<b>${all.p}</b></div><div class="stat">Abwesend<b>${all.a}</b></div><div class="stat">Krank<b>${all.k}</b></div></div><p><b>Sportzeug vergessen:</b> ${all.g}</p></div><div class="card"><table><tr><th>Schüler/in</th><th>Alles OK</th><th>Gefehlt</th><th>Sachen vergessen</th><th>Krank</th></tr>${rows.join("")}</table><h3>Gespeicherte Einheiten</h3>${us.map(u=>`<p>${u.date} – ${u.lessons} Turnstunde(n) <button class="danger" onclick="delUnit('${u.id}')">Löschen</button></p>`).join("")||"<p>Keine Einheiten.</p>"}</div>`
+}
 window.renderEval=renderEval;
 async function delUnit(id){if(confirm("Sporteinheit löschen?")){await deleteDoc(doc(db,"units",id));await load();renderEval()}}window.delUnit=delUnit;
 let pdfReady=false;
@@ -142,8 +153,26 @@ pdfLoading=Promise.all([
   pdfReady=!!(window.jspdf && window.jspdf.jsPDF && window.jspdf.jsPDF.API.autoTable);
 });
 
+function normalizeStatus(v){
+  if(v==="p"||v==="present"||v==="ok"||v==="anwesend"||v==="✓") return "p";
+  if(v==="a"||v==="absent"||v==="abwesend"||v==="A") return "a";
+  if(v==="k"||v==="sick"||v==="krank"||v==="K") return "k";
+  if(v==="g"||v==="forgot"||v==="equipment"||v==="sportzeug"||v==="Z") return "g";
+  return null;
+}
+
 function statusSymbol(v){
-  return v==="p"?"✓":v==="a"?"A":v==="k"?"K":"Z";
+  const n=normalizeStatus(v);
+  return n==="p"?"✓":n==="a"?"A":n==="k"?"K":n==="g"?"Z":"";
+}
+
+function countStudentStatuses(us,studentId){
+  const total={p:0,a:0,g:0,k:0};
+  us.forEach(u=>{
+    const n=normalizeStatus(u.statuses?.[studentId]);
+    if(n) total[n]++;
+  });
+  return total;
 }
 
 async function createAttendancePDF(c){
@@ -175,17 +204,13 @@ async function createAttendancePDF(c){
     // Kategorien über ALLE bisher gespeicherten Sporteinheiten dieser Klasse.
     // Jede Sporteinheit zählt dabei genau einmal – unabhängig davon, wie viele
     // Turnstunden bei dieser Einheit eingetragen wurden.
-    const head=["Schüler/in",...chunk.map(u=>formatDateShort(u.date)+"\n"+(u.lessons||1)+" Std."),"✓","A","K","Z"];
+    const head=["Schüler/in",...chunk.map(u=>formatDateShort(u.date)+"\n"+(u.lessons||1)+" Std."),"OK","Fehlt","Vergessen","Krank"];
     const body=students.map(s=>{
-      const total={p:0,a:0,k:0,g:0};
-
-      us.forEach(u=>{
-        const v=u.statuses?.[s.id] || "a";
-        if(Object.prototype.hasOwnProperty.call(total,v)) total[v]++;
-      });
-
-      const values=chunk.map(u=>statusSymbol(u.statuses?.[s.id] || "a"));
-      return [s.name,...values,total.p,total.a,total.k,total.g];
+      // Diese vier Werte werden nach JEDER neuen Auswertung neu aus
+      // sämtlichen bisher gespeicherten Sporteinheiten dieser Klasse berechnet.
+      const total=countStudentStatuses(us,s.id);
+      const values=chunk.map(u=>statusSymbol(u.statuses?.[s.id]));
+      return [s.name,...values,total.p,total.a,total.g,total.k];
     });
 
     p.autoTable({
